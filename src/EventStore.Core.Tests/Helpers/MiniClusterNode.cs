@@ -49,6 +49,7 @@ namespace EventStore.Core.Tests.Helpers {
 		public readonly TFChunkDb Db;
 		private readonly string _dbPath;
 		public ManualResetEvent StartedEvent;
+		public ManualResetEvent AdminUserCreatedEvent;
 
 		public VNodeState NodeState = VNodeState.Unknown;
 
@@ -128,6 +129,7 @@ namespace EventStore.Core.Tests.Helpers {
 			StartingTime.Start();
 
 			StartedEvent = new ManualResetEvent(false);
+			AdminUserCreatedEvent = new ManualResetEvent(false);
 			Node.MainBus.Subscribe(
 				new AdHocHandler<SystemMessage.StateChangeMessage>(m => { NodeState = VNodeState.Unknown; }));
 			Node.MainBus.Subscribe(
@@ -139,6 +141,10 @@ namespace EventStore.Core.Tests.Helpers {
 				new AdHocHandler<SystemMessage.BecomeSlave>(m => {
 					NodeState = VNodeState.Slave;
 					StartedEvent.Set();
+				}));
+			Node.MainBus.Subscribe(
+				new AdHocHandler<UserManagementMessage.UserManagementServiceInitialized>(m => {
+					AdminUserCreatedEvent.Set();
 				}));
 
 			Node.Start();
