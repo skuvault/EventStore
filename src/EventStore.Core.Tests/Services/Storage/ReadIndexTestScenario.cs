@@ -84,11 +84,11 @@ namespace EventStore.Core.Tests.Services.Storage {
 				readers,
 				TableIndex,
 				0,
-				additionalCommitChecks: PerformAdditionalCommitChecks,
-				metastreamMaxCount: MetastreamMaxCount,
-				hashCollisionReadLimit: Opts.HashCollisionReadLimitDefault,
-				skipIndexScanOnReads: Opts.SkipIndexScanOnReadsDefault,
-				replicationCheckpoint: Db.Config.ReplicationCheckpoint);
+				PerformAdditionalCommitChecks,
+				MetastreamMaxCount,
+				Opts.HashCollisionReadLimitDefault,
+				Opts.SkipIndexScanOnReadsDefault,
+				Db.Config.ReplicationCheckpoint);
 
 			ReadIndex.Init(ChaserCheckpoint.Read());
 
@@ -97,7 +97,7 @@ namespace EventStore.Core.Tests.Services.Storage {
 				if (_completeLastChunkOnScavenge)
 					Db.Manager.GetChunk(Db.Manager.ChunksCount - 1).Complete();
 				_scavenger = new TFChunkScavenger(Db, new FakeTFScavengerLog(), TableIndex, ReadIndex);
-				_scavenger.Scavenge(alwaysKeepScavenged: true, mergeChunks: _mergeChunks).Wait();
+				_scavenger.Scavenge(true, _mergeChunks).Wait();
 			}
 		}
 
@@ -120,13 +120,14 @@ namespace EventStore.Core.Tests.Services.Storage {
 			string data,
 			DateTime? timestamp = null,
 			Guid eventId = default(Guid),
-			bool retryOnFail = false) {
+			bool retryOnFail = false,
+			string eventType = "some-type") {
 			var prepare = LogRecord.SingleWrite(WriterCheckpoint.ReadNonFlushed(),
 				eventId == default(Guid) ? Guid.NewGuid() : eventId,
 				Guid.NewGuid(),
 				eventStreamId,
 				eventNumber - 1,
-				"some-type",
+				eventType,
 				Helper.UTF8NoBom.GetBytes(data),
 				null,
 				timestamp);
