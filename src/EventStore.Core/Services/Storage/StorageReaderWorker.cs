@@ -34,6 +34,7 @@ namespace EventStore.Core.Services.Storage {
 		private const string _readerReadHistogram = "reader-readevent";
 		private const string _readerStreamRangeHistogram = "reader-streamrange";
 		private const string _readerAllRangeHistogram = "reader-allrange";
+		private const string _readerLinkToHistogram = "reader-linkto";
 		private DateTime? _lastExpireTime = null;
 		private long _expiredBatchCount = 0;
 		private bool _batchLoggingEnabled = false;
@@ -466,30 +467,32 @@ namespace EventStore.Core.Services.Storage {
 		}
 
 		private ResolvedEvent? ResolveLinkToEvent(EventRecord eventRecord, IPrincipal user, long? commitPosition) {
-			if (eventRecord.EventType == SystemEventTypes.LinkTo) {
-				try {
-					var parts = Helper.UTF8NoBom.GetString(eventRecord.Data).Split(LinkToSeparator, 2);
-					long eventNumber = long.Parse(parts[0]);
-					var streamId = parts[1];
+			using (HistogramService.Measure(_readerLinkToHistogram)) {
+				if (eventRecord.EventType == SystemEventTypes.LinkTo) {
+					try {
+						var parts = Helper.UTF8NoBom.GetString(eventRecord.Data).Split(LinkToSeparator, 2);
+						long eventNumber = long.Parse(parts[0]);
+						var streamId = parts[1];
 
-					if (!_readIndex.CheckStreamAccess(streamId, StreamAccessType.Read, user).Granted)
-						return null;
+						if (!_readIndex.CheckStreamAccess(streamId, StreamAccessType.Read, user).Granted)
+							return null;
 
-					var res = _readIndex.ReadEvent(streamId, eventNumber);
-					if (res.Result == ReadEventResult.Success)
-						return ResolvedEvent.ForResolvedLink(res.Record, eventRecord, commitPosition);
+						var res = _readIndex.ReadEvent(streamId, eventNumber);
+						if (res.Result == ReadEventResult.Success)
+							return ResolvedEvent.ForResolvedLink(res.Record, eventRecord, commitPosition);
 
-					return ResolvedEvent.ForFailedResolvedLink(eventRecord, res.Result, commitPosition);
-				} catch (Exception exc) {
-					Log.ErrorException(exc, "Error while resolving link for event record: {eventRecord}",
-						eventRecord.ToString());
+						return ResolvedEvent.ForFailedResolvedLink(eventRecord, res.Result, commitPosition);
+					} catch (Exception exc) {
+						Log.ErrorException(exc, "Error while resolving link for event record: {eventRecord}",
+							eventRecord.ToString());
+					}
+
+					// return unresolved link
+					return ResolvedEvent.ForFailedResolvedLink(eventRecord, ReadEventResult.Error, commitPosition);
 				}
 
-				// return unresolved link
-				return ResolvedEvent.ForFailedResolvedLink(eventRecord, ReadEventResult.Error, commitPosition);
+				return ResolvedEvent.ForUnresolvedEvent(eventRecord, commitPosition);
 			}
-
-			return ResolvedEvent.ForUnresolvedEvent(eventRecord, commitPosition);
 		}
 
 		private ResolvedEvent[] ResolveReadAllResult(IList<CommitEventRecord> records, bool resolveLinks,
