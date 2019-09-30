@@ -3,11 +3,15 @@ using System.Threading;
 using EventStore.Common.Utils;
 using EventStore.Core.Exceptions;
 using EventStore.Core.TransactionLog.Checkpoint;
+using EventStore.Common.Log;
 
 namespace EventStore.Core.TransactionLog.Chunks {
 	public class TFChunkReader : ITransactionFileReader {
+		private static readonly ILogger Log = LogManager.GetLoggerFor<TFChunkReader>();
 		internal static long CachedReads;
 		internal static long NotCachedReads;
+		
+		internal static DateTime PreviousLogTime; //to rate limit logging of cached and not cached reads.
 
 		public const int MaxRetries = 20;
 
@@ -30,6 +34,7 @@ namespace EventStore.Core.TransactionLog.Chunks {
 			_db = db;
 			_writerCheckpoint = writerCheckpoint;
 			_curPos = initialPosition;
+			PreviousLogTime = DateTime.Now;
 
 			_optimizeReadSideCache = optimizeReadSideCache;
 			if (_optimizeReadSideCache)
@@ -55,7 +60,7 @@ namespace EventStore.Core.TransactionLog.Chunks {
 				RecordReadResult result;
 				try {
 					result = chunk.TryReadClosestForward(chunk.ChunkHeader.GetLocalLogPosition(pos));
-					CountRead(chunk.IsCached);
+					CountRead(chunk.IsCached);			
 				} catch (FileBeingDeletedException) {
 					if (retries > MaxRetries)
 						throw new Exception(
@@ -184,6 +189,12 @@ namespace EventStore.Core.TransactionLog.Chunks {
 				Interlocked.Increment(ref CachedReads);
 			else
 				Interlocked.Increment(ref NotCachedReads);
+			TimeSpan elapsed = DateTime.Now - PreviousLogTime;
+			if (elapsed.TotalSeconds > 1){
+				Log.Debug("TFChunkReader INFO: Timestamp {timestamp}, NotCachedReads {NotCachedReads}, CachedReads {CachedReads}", DateTime.Now.ToString("HH:mm:ss"), NotCachedReads,CachedReads );
+				PreviousLogTime = DateTime.Now;
+			}
+			
 		}
 	}
 }
