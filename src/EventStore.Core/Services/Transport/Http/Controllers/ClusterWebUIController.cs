@@ -33,7 +33,7 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 				OnListNodeSubsystems);
 		}
 
-		private void OnListNodeSubsystems(HttpEntityManager http, UriTemplateMatch match) {
+		private void OnListNodeSubsystems(HttpEntityManager http) {
 			http.ReplyTextContent(
 				Codec.Json.To(_enabledNodeSubsystems),
 				200,
@@ -52,7 +52,7 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 					Codec.NoCodecs,
 					new ICodec[] {Codec.ManualEncoding},
 					AuthorizationLevel.None),
-				(http, match) => http.ReplyTextContent(
+				(http) => http.ReplyTextContent(
 					"Moved", 302, "Found", "text/plain",
 					new[] {
 						new KeyValuePair<string, string>(

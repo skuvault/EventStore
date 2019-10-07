@@ -3,14 +3,12 @@ using EventStore.Transport.Http.EntityManagement;
 
 namespace EventStore.Core.Services.Transport.Http {
 	public class UriToActionMatch {
-		public readonly UriTemplateMatch TemplateMatch;
 		public readonly ControllerAction ControllerAction;
-		public readonly Func<HttpEntityManager, UriTemplateMatch, RequestParams> RequestHandler;
+		public readonly Func<HttpEntityManager, RequestParams> RequestHandler;
 
-		public UriToActionMatch(UriTemplateMatch templateMatch,
+		public UriToActionMatch(
 			ControllerAction controllerAction,
-			Func<HttpEntityManager, UriTemplateMatch, RequestParams> requestHandler) {
-			TemplateMatch = templateMatch;
+			Func<HttpEntityManager, RequestParams> requestHandler) {
 			ControllerAction = controllerAction;
 			RequestHandler = requestHandler;
 		}

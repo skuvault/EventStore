@@ -15,11 +15,11 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 					Codec.NoCodecs,
 					new ICodec[] {Codec.ManualEncoding},
 					AuthorizationLevel.None),
-				(http, match) => http.ReplyTextContent(
+				(http) => http.ReplyTextContent(
 					"Moved", 302, "Found", "text/plain",
 					new[] {
 						new KeyValuePair<string, string>(
-							"Location", new Uri(match.BaseUri, toUrl).AbsoluteUri)
+							"Location", new Uri(toUrl).AbsoluteUri)
 					}, Console.WriteLine));
 		}
 

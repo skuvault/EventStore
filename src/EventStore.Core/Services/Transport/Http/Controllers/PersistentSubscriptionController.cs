@@ -64,302 +64,51 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 				AuthorizationLevel.User, ReplayParkedMessages);
 		}
 
-		private static ClientMessages.NakAction GetNackAction(HttpEntityManager manager, UriTemplateMatch match,
-			NakAction nakAction = NakAction.Unknown) {
-			var rawValue = match.BoundVariables["action"] ?? string.Empty;
-			switch (rawValue.ToLowerInvariant()) {
-				case "park": return ClientMessages.NakAction.Park;
-				case "retry": return ClientMessages.NakAction.Retry;
-				case "skip": return ClientMessages.NakAction.Skip;
-				case "stop": return ClientMessages.NakAction.Stop;
-				default: return ClientMessages.NakAction.Unknown;
-			}
-		}
 
-		private void AckMessages(HttpEntityManager http, UriTemplateMatch match) {
+		private void AckMessages(HttpEntityManager http) {
 			if (_httpForwarder.ForwardRequest(http))
 				return;
-			var envelope = new NoopEnvelope();
-			var groupname = match.BoundVariables["subscription"];
-			var stream = match.BoundVariables["stream"];
-			var messageIds = match.BoundVariables["messageIds"];
-			var ids = new List<Guid>();
-			foreach (var messageId in messageIds.Split(new[] {','})) {
-				Guid id;
-				if (!Guid.TryParse(messageId, out id)) {
-					http.ReplyStatus(HttpStatusCode.BadRequest, "messageid should be a properly formed guid",
-						exception => { });
-					return;
-				}
 
-				ids.Add(id);
-			}
-
-			var cmd = new ClientMessage.PersistentSubscriptionAckEvents(
-				Guid.NewGuid(),
-				Guid.NewGuid(),
-				envelope,
-				BuildSubscriptionGroupKey(stream, groupname),
-				ids.ToArray(),
-				http.User);
-			Publish(cmd);
-			http.ReplyStatus(HttpStatusCode.Accepted, "", exception => { });
 		}
 
-		private void NackMessages(HttpEntityManager http, UriTemplateMatch match) {
+		private void NackMessages(HttpEntityManager http) {
 			if (_httpForwarder.ForwardRequest(http))
 				return;
-			var envelope = new NoopEnvelope();
-			var groupname = match.BoundVariables["subscription"];
-			var stream = match.BoundVariables["stream"];
-			var messageIds = match.BoundVariables["messageIds"];
-			var nakAction = GetNackAction(http, match);
-			var ids = new List<Guid>();
-			foreach (var messageId in messageIds.Split(new[] {','})) {
-				Guid id;
-				if (!Guid.TryParse(messageId, out id)) {
-					http.ReplyStatus(HttpStatusCode.BadRequest, "messageid should be a properly formed guid",
-						exception => { });
-					return;
-				}
 
-				ids.Add(id);
-			}
-
-			var cmd = new ClientMessage.PersistentSubscriptionNackEvents(
-				Guid.NewGuid(),
-				Guid.NewGuid(),
-				envelope,
-				BuildSubscriptionGroupKey(stream, groupname),
-				"Nacked from HTTP",
-				nakAction,
-				ids.ToArray(),
-				http.User);
-			Publish(cmd);
-			http.ReplyStatus(HttpStatusCode.Accepted, "", exception => { });
 		}
 
 		private static string BuildSubscriptionGroupKey(string stream, string groupName) {
 			return stream + "::" + groupName;
 		}
 
-		private void AckMessage(HttpEntityManager http, UriTemplateMatch match) {
+		private void AckMessage(HttpEntityManager http) {
 			if (_httpForwarder.ForwardRequest(http))
 				return;
-			var envelope = new NoopEnvelope();
-			var groupname = match.BoundVariables["subscription"];
-			var stream = match.BoundVariables["stream"];
-			var messageId = match.BoundVariables["messageId"];
-			var id = Guid.NewGuid();
-			if (!Guid.TryParse(messageId, out id)) {
-				http.ReplyStatus(HttpStatusCode.BadRequest, "messageid should be a properly formed guid",
-					exception => { });
-				return;
-			}
 
-			var cmd = new ClientMessage.PersistentSubscriptionAckEvents(
-				Guid.NewGuid(),
-				Guid.NewGuid(),
-				envelope,
-				BuildSubscriptionGroupKey(stream, groupname),
-				new[] {id},
-				http.User);
-			Publish(cmd);
-			http.ReplyStatus(HttpStatusCode.Accepted, "", exception => { });
 		}
 
-		private void NackMessage(HttpEntityManager http, UriTemplateMatch match) {
+		private void NackMessage(HttpEntityManager http) {
 			if (_httpForwarder.ForwardRequest(http))
 				return;
-			var envelope = new NoopEnvelope();
-			var groupname = match.BoundVariables["subscription"];
-			var stream = match.BoundVariables["stream"];
-			var messageId = match.BoundVariables["messageId"];
-			var nakAction = GetNackAction(http, match);
-			var id = Guid.NewGuid();
-			if (!Guid.TryParse(messageId, out id)) {
-				http.ReplyStatus(HttpStatusCode.BadRequest, "messageid should be a properly formed guid",
-					exception => { });
-				return;
-			}
 
-			var cmd = new ClientMessage.PersistentSubscriptionNackEvents(
-				Guid.NewGuid(),
-				Guid.NewGuid(),
-				envelope,
-				BuildSubscriptionGroupKey(stream, groupname),
-				"Nacked from HTTP",
-				nakAction,
-				new[] {id},
-				http.User);
-			Publish(cmd);
-			http.ReplyStatus(HttpStatusCode.Accepted, "", exception => { });
 		}
 
-		private void ReplayParkedMessages(HttpEntityManager http, UriTemplateMatch match) {
+		private void ReplayParkedMessages(HttpEntityManager http) {
 			if (_httpForwarder.ForwardRequest(http))
 				return;
-			var envelope = new SendToHttpEnvelope(
-				_networkSendQueue, http,
-				(args, message) => http.ResponseCodec.To(message),
-				(args, message) => {
-					int code;
-					var m = message as ClientMessage.ReplayMessagesReceived;
-					if (m == null) throw new Exception("unexpected message " + message);
-					switch (m.Result) {
-						case ClientMessage.ReplayMessagesReceived.ReplayMessagesReceivedResult.Success:
-							code = HttpStatusCode.OK;
-							break;
-						case ClientMessage.ReplayMessagesReceived.ReplayMessagesReceivedResult.DoesNotExist:
-							code = HttpStatusCode.NotFound;
-							break;
-						case ClientMessage.ReplayMessagesReceived.ReplayMessagesReceivedResult.AccessDenied:
-							code = HttpStatusCode.Unauthorized;
-							break;
-						default:
-							code = HttpStatusCode.InternalServerError;
-							break;
-					}
 
-					return new ResponseConfiguration(code, http.ResponseCodec.ContentType,
-						http.ResponseCodec.Encoding);
-				});
-			var groupname = match.BoundVariables["subscription"];
-			var stream = match.BoundVariables["stream"];
-			var cmd = new ClientMessage.ReplayAllParkedMessages(Guid.NewGuid(), Guid.NewGuid(), envelope, stream,
-				groupname, http.User);
-			Publish(cmd);
 		}
 
-		private void PutSubscription(HttpEntityManager http, UriTemplateMatch match) {
+		private void PutSubscription(HttpEntityManager http) {
 			if (_httpForwarder.ForwardRequest(http))
 				return;
-			var groupname = match.BoundVariables["subscription"];
-			var stream = match.BoundVariables["stream"];
-			var envelope = new SendToHttpEnvelope(
-				_networkSendQueue, http,
-				(args, message) => http.ResponseCodec.To(message),
-				(args, message) => {
-					int code;
-					var m = message as ClientMessage.CreatePersistentSubscriptionCompleted;
-					if (m == null) throw new Exception("unexpected message " + message);
-					switch (m.Result) {
-						case ClientMessage.CreatePersistentSubscriptionCompleted.CreatePersistentSubscriptionResult
-							.Success:
-							code = HttpStatusCode.Created;
-							break;
-						case ClientMessage.CreatePersistentSubscriptionCompleted.CreatePersistentSubscriptionResult
-							.AlreadyExists:
-							code = HttpStatusCode.Conflict;
-							break;
-						case ClientMessage.CreatePersistentSubscriptionCompleted.CreatePersistentSubscriptionResult
-							.AccessDenied:
-							code = HttpStatusCode.Unauthorized;
-							break;
-						default:
-							code = HttpStatusCode.InternalServerError;
-							break;
-					}
 
-					return new ResponseConfiguration(code, http.ResponseCodec.ContentType,
-						http.ResponseCodec.Encoding,
-						new KeyValuePair<string, string>("location",
-							MakeUrl(http, "/subscriptions/" + stream + "/" + groupname)));
-				});
-			http.ReadTextRequestAsync(
-				(o, s) => {
-					var data = http.RequestCodec.From<SubscriptionConfigData>(s);
-					var config = ParseConfig(data);
-					if (!ValidateConfig(config, http)) return;
-					var message = new ClientMessage.CreatePersistentSubscription(Guid.NewGuid(),
-						Guid.NewGuid(),
-						envelope,
-						stream,
-						groupname,
-						config.ResolveLinktos,
-						config.StartFrom,
-						config.MessageTimeoutMilliseconds,
-						config.ExtraStatistics,
-						config.MaxRetryCount,
-						config.BufferSize,
-						config.LiveBufferSize,
-						config.ReadBatchSize,
-						config.CheckPointAfterMilliseconds,
-						config.MinCheckPointCount,
-						config.MaxCheckPointCount,
-						config.MaxSubscriberCount,
-						CalculateNamedConsumerStrategyForOldClients(data),
-						http.User,
-						"",
-						"");
-					Publish(message);
-				}, x => Log.DebugException(x, "Reply Text Content Failed."));
 		}
 
-		private void PostSubscription(HttpEntityManager http, UriTemplateMatch match) {
+		private void PostSubscription(HttpEntityManager http) {
 			if (_httpForwarder.ForwardRequest(http))
 				return;
-			var groupname = match.BoundVariables["subscription"];
-			var stream = match.BoundVariables["stream"];
-			var envelope = new SendToHttpEnvelope(
-				_networkSendQueue, http,
-				(args, message) => http.ResponseCodec.To(message),
-				(args, message) => {
-					int code;
-					var m = message as ClientMessage.UpdatePersistentSubscriptionCompleted;
-					if (m == null) throw new Exception("unexpected message " + message);
-					switch (m.Result) {
-						case ClientMessage.UpdatePersistentSubscriptionCompleted.UpdatePersistentSubscriptionResult
-							.Success:
-							code = HttpStatusCode.OK;
-							//TODO competing return uri to subscription
-							break;
-						case ClientMessage.UpdatePersistentSubscriptionCompleted.UpdatePersistentSubscriptionResult
-							.DoesNotExist:
-							code = HttpStatusCode.NotFound;
-							break;
-						case ClientMessage.UpdatePersistentSubscriptionCompleted.UpdatePersistentSubscriptionResult
-							.AccessDenied:
-							code = HttpStatusCode.Unauthorized;
-							break;
-						default:
-							code = HttpStatusCode.InternalServerError;
-							break;
-					}
 
-					return new ResponseConfiguration(code, http.ResponseCodec.ContentType,
-						http.ResponseCodec.Encoding,
-						new KeyValuePair<string, string>("location",
-							MakeUrl(http, "/subscriptions/" + stream + "/" + groupname)));
-				});
-			http.ReadTextRequestAsync(
-				(o, s) => {
-					var data = http.RequestCodec.From<SubscriptionConfigData>(s);
-					var config = ParseConfig(data);
-					if (!ValidateConfig(config, http)) return;
-					var message = new ClientMessage.UpdatePersistentSubscription(Guid.NewGuid(),
-						Guid.NewGuid(),
-						envelope,
-						stream,
-						groupname,
-						config.ResolveLinktos,
-						config.StartFrom,
-						config.MessageTimeoutMilliseconds,
-						config.ExtraStatistics,
-						config.MaxRetryCount,
-						config.BufferSize,
-						config.LiveBufferSize,
-						config.ReadBatchSize,
-						config.CheckPointAfterMilliseconds,
-						config.MinCheckPointCount,
-						config.MaxCheckPointCount,
-						config.MaxSubscriberCount,
-						CalculateNamedConsumerStrategyForOldClients(data),
-						http.User,
-						"",
-						"");
-					Publish(message);
-				}, x => Log.DebugException(x, "Reply Text Content Failed."));
 		}
 
 		private SubscriptionConfigData ParseConfig(SubscriptionConfigData config) {
@@ -435,45 +184,13 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 			return namedConsumerStrategy;
 		}
 
-		private void DeleteSubscription(HttpEntityManager http, UriTemplateMatch match) {
+		private void DeleteSubscription(HttpEntityManager http) {
 			if (_httpForwarder.ForwardRequest(http))
 				return;
-			var envelope = new SendToHttpEnvelope(
-				_networkSendQueue, http,
-				(args, message) => http.ResponseCodec.To(message),
-				(args, message) => {
-					int code;
-					var m = message as ClientMessage.DeletePersistentSubscriptionCompleted;
-					if (m == null) throw new Exception("unexpected message " + message);
-					switch (m.Result) {
-						case ClientMessage.DeletePersistentSubscriptionCompleted.DeletePersistentSubscriptionResult
-							.Success:
-							code = HttpStatusCode.OK;
-							break;
-						case ClientMessage.DeletePersistentSubscriptionCompleted.DeletePersistentSubscriptionResult
-							.DoesNotExist:
-							code = HttpStatusCode.NotFound;
-							break;
-						case ClientMessage.DeletePersistentSubscriptionCompleted.DeletePersistentSubscriptionResult
-							.AccessDenied:
-							code = HttpStatusCode.Unauthorized;
-							break;
-						default:
-							code = HttpStatusCode.InternalServerError;
-							break;
-					}
 
-					return new ResponseConfiguration(code, http.ResponseCodec.ContentType,
-						http.ResponseCodec.Encoding);
-				});
-			var groupname = match.BoundVariables["subscription"];
-			var stream = match.BoundVariables["stream"];
-			var cmd = new ClientMessage.DeletePersistentSubscription(Guid.NewGuid(), Guid.NewGuid(), envelope, stream,
-				groupname, http.User);
-			Publish(cmd);
 		}
 
-		private void GetAllSubscriptionInfo(HttpEntityManager http, UriTemplateMatch match) {
+		private void GetAllSubscriptionInfo(HttpEntityManager http) {
 			if (_httpForwarder.ForwardRequest(http))
 				return;
 			var envelope = new SendToHttpEnvelope(
@@ -486,34 +203,16 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 			Publish(cmd);
 		}
 
-		private void GetSubscriptionInfoForStream(HttpEntityManager http, UriTemplateMatch match) {
+		private void GetSubscriptionInfoForStream(HttpEntityManager http) {
 			if (_httpForwarder.ForwardRequest(http))
 				return;
-			var stream = match.BoundVariables["stream"];
-			var envelope = new SendToHttpEnvelope(
-				_networkSendQueue, http,
-				(args, message) =>
-					http.ResponseCodec.To(ToSummaryDto(http,
-						message as MonitoringMessage.GetPersistentSubscriptionStatsCompleted).ToArray()),
-				(args, message) => StatsConfiguration(http, message));
-			var cmd = new MonitoringMessage.GetStreamPersistentSubscriptionStats(envelope, stream);
-			Publish(cmd);
+
 		}
 
-		private void GetSubscriptionInfo(HttpEntityManager http, UriTemplateMatch match) {
+		private void GetSubscriptionInfo(HttpEntityManager http) {
 			if (_httpForwarder.ForwardRequest(http))
 				return;
-			var stream = match.BoundVariables["stream"];
-			var groupName = match.BoundVariables["subscription"];
-			var envelope = new SendToHttpEnvelope(
-				_networkSendQueue, http,
-				(args, message) =>
-					http.ResponseCodec.To(
-						ToDto(http, message as MonitoringMessage.GetPersistentSubscriptionStatsCompleted)
-							.FirstOrDefault()),
-				(args, message) => StatsConfiguration(http, message));
-			var cmd = new MonitoringMessage.GetPersistentSubscriptionStats(envelope, stream, groupName);
-			Publish(cmd);
+
 		}
 
 		private static ResponseConfiguration StatsConfiguration(HttpEntityManager http, Message message) {
@@ -539,77 +238,10 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 				http.ResponseCodec.Encoding);
 		}
 
-		private void GetNextNMessages(HttpEntityManager http, UriTemplateMatch match) {
+		private void GetNextNMessages(HttpEntityManager http) {
 			if (_httpForwarder.ForwardRequest(http))
 				return;
-			var groupname = match.BoundVariables["subscription"];
-			var stream = match.BoundVariables["stream"];
-			var cnt = match.BoundVariables["count"];
-			var embed = GetEmbedLevel(http, match);
-			int count = DefaultNumberOfMessagesToGet;
-			if (!cnt.IsEmptyString() && (!int.TryParse(cnt, out count) || count > 100 || count < 1)) {
-				SendBadRequest(http,
-					string.Format("Message count must be an integer between 1 and 100 'count' ='{0}'", count));
-				return;
-			}
 
-			var envelope = new SendToHttpEnvelope(
-				_networkSendQueue, http,
-				(args, message) => Format.ReadNextNPersistentMessagesCompleted(http,
-					message as ClientMessage.ReadNextNPersistentMessagesCompleted, stream, groupname, count, embed),
-				(args, message) => {
-					int code;
-					var m = message as ClientMessage.ReadNextNPersistentMessagesCompleted;
-					if (m == null) throw new Exception("unexpected message " + message);
-					switch (m.Result) {
-						case
-							ClientMessage.ReadNextNPersistentMessagesCompleted.ReadNextNPersistentMessagesResult
-								.Success:
-							code = HttpStatusCode.OK;
-							break;
-						case
-							ClientMessage.ReadNextNPersistentMessagesCompleted.ReadNextNPersistentMessagesResult
-								.DoesNotExist:
-							code = HttpStatusCode.NotFound;
-							break;
-						case
-							ClientMessage.ReadNextNPersistentMessagesCompleted.ReadNextNPersistentMessagesResult
-								.AccessDenied:
-							code = HttpStatusCode.Unauthorized;
-							break;
-						default:
-							code = HttpStatusCode.InternalServerError;
-							break;
-					}
-
-					return new ResponseConfiguration(code, http.ResponseCodec.ContentType,
-						http.ResponseCodec.Encoding);
-				});
-
-			var cmd = new ClientMessage.ReadNextNPersistentMessages(
-				Guid.NewGuid(),
-				Guid.NewGuid(),
-				envelope,
-				stream,
-				groupname,
-				count,
-				http.User);
-			Publish(cmd);
-		}
-
-		private static EmbedLevel GetEmbedLevel(HttpEntityManager manager, UriTemplateMatch match,
-			EmbedLevel htmlLevel = EmbedLevel.PrettyBody) {
-			if (manager.ResponseCodec is IRichAtomCodec)
-				return htmlLevel;
-			var rawValue = match.BoundVariables["embed"] ?? string.Empty;
-			switch (rawValue.ToLowerInvariant()) {
-				case "content": return EmbedLevel.Content;
-				case "rich": return EmbedLevel.Rich;
-				case "body": return EmbedLevel.Body;
-				case "pretty": return EmbedLevel.PrettyBody;
-				case "tryharder": return EmbedLevel.TryHarder;
-				default: return EmbedLevel.None;
-			}
 		}
 
 		string parkedMessageUriTemplate =

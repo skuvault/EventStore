@@ -45,20 +45,5 @@ namespace EventStore.Core {
 			_clusterNodeMutex.ReleaseMutex();
 		}
 
-		public static bool IsPresent(int pid) {
-			var mutexName = string.Format("ESCLUSTERNODE:{0}", pid);
-			try {
-				using (Mutex.OpenExisting(mutexName, MutexRights.ReadPermissions)) {
-					return true;
-				}
-			} catch (WaitHandleCannotBeOpenedException) {
-				return false;
-			} catch (Exception exc) {
-				Log.TraceException(exc, "Exception while trying to open Cluster Node mutex '{mutex}': {e}.", mutexName,
-					exc.Message);
-			}
-
-			return false;
-		}
 	}
 }

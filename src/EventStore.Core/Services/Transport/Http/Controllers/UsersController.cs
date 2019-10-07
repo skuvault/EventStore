@@ -37,7 +37,7 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 				DefaultCodecs, DefaultCodecs, AuthorizationLevel.User);
 		}
 
-		private void GetUsers(HttpEntityManager http, UriTemplateMatch match) {
+		private void GetUsers(HttpEntityManager http) {
 			if (_httpForwarder.ForwardRequest(http))
 				return;
 
@@ -49,7 +49,7 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 			Publish(message);
 		}
 
-		private void GetUser(HttpEntityManager http, UriTemplateMatch match) {
+		private void GetUser(HttpEntityManager http) {
 			if (_httpForwarder.ForwardRequest(http))
 				return;
 
@@ -57,12 +57,9 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 				(UserManagementMessage.UserDetailsResult msg) =>
 					new UserManagementMessage.UserDetailsResultHttpFormatted(msg, s => MakeUrl(http, s)));
 
-			var login = match.BoundVariables["login"];
-			var message = new UserManagementMessage.Get(envelope, http.User, login);
-			Publish(message);
 		}
 
-		private void GetCurrentUser(HttpEntityManager http, UriTemplateMatch match) {
+		private void GetCurrentUser(HttpEntityManager http) {
 			if (_httpForwarder.ForwardRequest(http))
 				return;
 			var envelope = CreateReplyEnvelope<UserManagementMessage.UserDetailsResult>(http);
@@ -76,7 +73,7 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 			Publish(message);
 		}
 
-		private void PostUser(HttpEntityManager http, UriTemplateMatch match) {
+		private void PostUser(HttpEntityManager http) {
 			if (_httpForwarder.ForwardRequest(http))
 				return;
 			var envelope = CreateReplyEnvelope<UserManagementMessage.UpdateResult>(
@@ -96,73 +93,31 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 				}, x => Log.DebugException(x, "Reply Text Content Failed."));
 		}
 
-		private void PutUser(HttpEntityManager http, UriTemplateMatch match) {
+		private void PutUser(HttpEntityManager http) {
 			if (_httpForwarder.ForwardRequest(http))
 				return;
 			var envelope = CreateReplyEnvelope<UserManagementMessage.UpdateResult>(http);
-			http.ReadTextRequestAsync(
-				(o, s) => {
-					var login = match.BoundVariables["login"];
-					var data = http.RequestCodec.From<PutUserData>(s);
-					var message =
-						new UserManagementMessage.Update(envelope, http.User, login, data.FullName, data.Groups);
-					Publish(message);
-				}, x => Log.DebugException(x, "Reply Text Content Failed."));
+
 		}
 
-		private void DeleteUser(HttpEntityManager http, UriTemplateMatch match) {
-			if (_httpForwarder.ForwardRequest(http))
-				return;
-			var envelope = CreateReplyEnvelope<UserManagementMessage.UpdateResult>(http);
-			var login = match.BoundVariables["login"];
-			var message = new UserManagementMessage.Delete(envelope, http.User, login);
-			Publish(message);
+		private void DeleteUser(HttpEntityManager http) {
 		}
 
-		private void PostCommandEnable(HttpEntityManager http, UriTemplateMatch match) {
-			if (_httpForwarder.ForwardRequest(http))
-				return;
-			var envelope = CreateReplyEnvelope<UserManagementMessage.UpdateResult>(http);
-			var login = match.BoundVariables["login"];
-			var message = new UserManagementMessage.Enable(envelope, http.User, login);
-			Publish(message);
+		private void PostCommandEnable(HttpEntityManager http) {
 		}
 
-		private void PostCommandDisable(HttpEntityManager http, UriTemplateMatch match) {
-			if (_httpForwarder.ForwardRequest(http))
-				return;
-			var envelope = CreateReplyEnvelope<UserManagementMessage.UpdateResult>(http);
-			var login = match.BoundVariables["login"];
-			var message = new UserManagementMessage.Disable(envelope, http.User, login);
-			Publish(message);
+		private void PostCommandDisable(HttpEntityManager http) {
 		}
 
-		private void PostCommandResetPassword(HttpEntityManager http, UriTemplateMatch match) {
+		private void PostCommandResetPassword(HttpEntityManager http) {
 			if (_httpForwarder.ForwardRequest(http))
 				return;
-			var envelope = CreateReplyEnvelope<UserManagementMessage.UpdateResult>(http);
-			http.ReadTextRequestAsync(
-				(o, s) => {
-					var login = match.BoundVariables["login"];
-					var data = http.RequestCodec.From<ResetPasswordData>(s);
-					var message = new UserManagementMessage.ResetPassword(envelope, http.User, login, data.NewPassword);
-					Publish(message);
-				}, x => Log.DebugException(x, "Reply Text Content Failed."));
 		}
 
-		private void PostCommandChangePassword(HttpEntityManager http, UriTemplateMatch match) {
+		private void PostCommandChangePassword(HttpEntityManager http) {
 			if (_httpForwarder.ForwardRequest(http))
 				return;
 			var envelope = CreateReplyEnvelope<UserManagementMessage.UpdateResult>(http);
-			http.ReadTextRequestAsync(
-				(o, s) => {
-					var login = match.BoundVariables["login"];
-					var data = http.RequestCodec.From<ChangePasswordData>(s);
-					var message = new UserManagementMessage.ChangePassword(
-						envelope, http.User, login, data.CurrentPassword, data.NewPassword);
-					Publish(message);
-				},
-				x => Log.DebugException(x, "Reply Text Content Failed."));
 		}
 
 		private SendToHttpEnvelope<T> CreateReplyEnvelope<T>(

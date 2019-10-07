@@ -5,7 +5,7 @@ using EventStore.Transport.Http.EntityManagement;
 
 namespace EventStore.Core.Services.Transport.Http {
 	public interface IUriRouter {
-		void RegisterAction(ControllerAction action, Func<HttpEntityManager, UriTemplateMatch, RequestParams> handler);
+		void RegisterAction(ControllerAction action, Func<HttpEntityManager, RequestParams> handler);
 		List<UriToActionMatch> GetAllUriMatches(Uri uri);
 	}
 
@@ -16,7 +16,7 @@ namespace EventStore.Core.Services.Transport.Http {
 		private readonly RouterNode _root = new RouterNode();
 
 		public void RegisterAction(ControllerAction action,
-			Func<HttpEntityManager, UriTemplateMatch, RequestParams> handler) {
+			Func<HttpEntityManager,  RequestParams> handler) {
 			Ensure.NotNull(action, "action");
 			Ensure.NotNull(handler, "handler");
 
@@ -82,9 +82,6 @@ namespace EventStore.Core.Services.Transport.Http {
 			List<UriToActionMatch> matches) {
 			for (int i = 0; i < routes.Count; ++i) {
 				var route = routes[i];
-				var match = route.UriTemplate.Match(baseAddress, uri);
-				if (match != null)
-					matches.Add(new UriToActionMatch(match, route.Action, route.Handler));
 			}
 		}
 
@@ -98,7 +95,7 @@ namespace EventStore.Core.Services.Transport.Http {
 		private readonly List<HttpRoute> _actions = new List<HttpRoute>();
 
 		public void RegisterAction(ControllerAction action,
-			Func<HttpEntityManager, UriTemplateMatch, RequestParams> handler) {
+			Func<HttpEntityManager, RequestParams> handler) {
 			if (_actions.Contains(x => x.Action.Equals(action)))
 				throw new ArgumentException("Duplicate route.");
 			_actions.Add(new HttpRoute(action, handler));
@@ -109,9 +106,6 @@ namespace EventStore.Core.Services.Transport.Http {
 			var baseAddress = new UriBuilder(uri.Scheme, uri.Host, uri.Port).Uri;
 			for (int i = 0; i < _actions.Count; ++i) {
 				var route = _actions[i];
-				var match = route.UriTemplate.Match(baseAddress, uri);
-				if (match != null)
-					matches.Add(new UriToActionMatch(match, route.Action, route.Handler));
 			}
 
 			return matches;
@@ -120,13 +114,11 @@ namespace EventStore.Core.Services.Transport.Http {
 
 	internal class HttpRoute {
 		public readonly ControllerAction Action;
-		public readonly Func<HttpEntityManager, UriTemplateMatch, RequestParams> Handler;
-		public readonly UriTemplate UriTemplate;
+		public readonly Func<HttpEntityManager, RequestParams> Handler;
 
-		public HttpRoute(ControllerAction action, Func<HttpEntityManager, UriTemplateMatch, RequestParams> handler) {
+		public HttpRoute(ControllerAction action, Func<HttpEntityManager,  RequestParams> handler) {
 			Action = action;
 			Handler = handler;
-			UriTemplate = new UriTemplate(action.UriTemplate);
 		}
 	}
 }

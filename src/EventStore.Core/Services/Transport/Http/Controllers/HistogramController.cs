@@ -19,8 +19,8 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 				OnGetHistogram);
 		}
 
-		private void OnGetHistogram(HttpEntityManager entity, UriTemplateMatch match) {
-			var name = match.BoundVariables["name"];
+		private void OnGetHistogram(HttpEntityManager entity) {
+			var name = "name";
 
 			var histogram = Histograms.HistogramService.GetHistogram(name);
 			if (histogram == null) {

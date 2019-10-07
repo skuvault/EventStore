@@ -81,7 +81,7 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 				error => Publish(new GossipMessage.GossipSendFailed(error.Message, endPoint)));
 		}
 
-		private void OnPostGossip(HttpEntityManager entity, UriTemplateMatch match) {
+		private void OnPostGossip(HttpEntityManager entity) {
 			entity.ReadTextRequestAsync(OnPostGossipRequestRead,
 				e => Log.Debug("Error while reading request (gossip): {e}", e.Message));
 		}
@@ -121,7 +121,7 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 			return serverEndPoint;
 		}
 
-		private void OnGetGossip(HttpEntityManager entity, UriTemplateMatch match) {
+		private void OnGetGossip(HttpEntityManager entity) {
 			var sendToHttpEnvelope = new SendToHttpEnvelope(
 				_networkSendQueue, entity, Format.SendGossip,
 				(e, m) => Configure.Ok(e.ResponseCodec.ContentType, Helper.UTF8NoBom, null, null, false));

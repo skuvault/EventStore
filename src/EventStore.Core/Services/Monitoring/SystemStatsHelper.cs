@@ -18,7 +18,6 @@ namespace EventStore.Core.Services.Monitoring {
 		private readonly ILogger _log;
 		private readonly ICheckpoint _writerCheckpoint;
 		private readonly string _dbPath;
-		private PerfCounterHelper _perfCounter;
 		private bool _giveup;
 
 		public SystemStatsHelper(ILogger log, ICheckpoint writerCheckpoint, string dbPath) {
@@ -27,7 +26,6 @@ namespace EventStore.Core.Services.Monitoring {
 
 			_log = log;
 			_writerCheckpoint = writerCheckpoint;
-			_perfCounter = new PerfCounterHelper(_log);
 			_dbPath = dbPath;
 		}
 
@@ -105,7 +103,7 @@ namespace EventStore.Core.Services.Monitoring {
 				return;
 			var process = Process.GetCurrentProcess();
 			try {
-				_perfCounter.RefreshInstanceName();
+				/*_perfCounter.RefreshInstanceName();
 
 				var procCpuUsage = _perfCounter.GetProcCpuUsage();
 
@@ -132,10 +130,9 @@ namespace EventStore.Core.Services.Monitoring {
 				stats["proc-gc-gen2Size"] = gcStats.Gen2Size;
 				stats["proc-gc-largeHeapSize"] = gcStats.LargeHeapSize;
 				stats["proc-gc-timeInGc"] = gcStats.TimeInGc;
-				stats["proc-gc-totalBytesInHeaps"] = gcStats.TotalBytesInHeaps;
+				stats["proc-gc-totalBytesInHeaps"] = gcStats.TotalBytesInHeaps;*/
 			} catch (InvalidOperationException) {
 				_log.Info("Received error reading counters. Attempting to rebuild.");
-				_perfCounter = new PerfCounterHelper(_log);
 				_giveup = count > 10;
 				if (_giveup)
 					_log.Error("Maximum rebuild attempts reached. Giving up on rebuilds.");
@@ -150,7 +147,6 @@ namespace EventStore.Core.Services.Monitoring {
 		private long GetFreeMem() {
 			switch (OS.OsFlavor) {
 				case OsFlavor.Windows:
-					return _perfCounter.GetFreeMemory();
 				case OsFlavor.Linux:
 					return GetFreeMemOnLinux();
 				case OsFlavor.MacOS:
@@ -220,7 +216,6 @@ namespace EventStore.Core.Services.Monitoring {
 		}
 
 		public void Dispose() {
-			_perfCounter.Dispose();
 		}
 	}
 }

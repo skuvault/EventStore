@@ -98,7 +98,7 @@ namespace EventStore.Core.Services.Transport.Http {
 				try {
 					var manager =
 						httpEntity.CreateManager(requestCodec, responseCodec, allowedMethods, satisfied => { });
-					var reqParams = match.RequestHandler(manager, match.TemplateMatch);
+					var reqParams = match.RequestHandler(manager);
 					if (!reqParams.IsDone)
 						_pending.Add(Tuple.Create(DateTime.UtcNow + reqParams.Timeout, manager));
 				} catch (Exception exc) {

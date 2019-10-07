@@ -171,27 +171,27 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 				SendBadRequest(manager, string.Format("Invalid request. Body contains badly formatted object"));
 		}
 
-		private void OnPostViewChange(HttpEntityManager manager, UriTemplateMatch match) {
+		private void OnPostViewChange(HttpEntityManager manager) {
 			OnPost(manager, (ElectionMessageDto.ViewChangeDto dto) => new ElectionMessage.ViewChange(dto));
 		}
 
-		private void OnPostViewChangeProof(HttpEntityManager manager, UriTemplateMatch match) {
+		private void OnPostViewChangeProof(HttpEntityManager manager) {
 			OnPost(manager, (ElectionMessageDto.ViewChangeProofDto dto) => new ElectionMessage.ViewChangeProof(dto));
 		}
 
-		private void OnPostPrepare(HttpEntityManager manager, UriTemplateMatch match) {
+		private void OnPostPrepare(HttpEntityManager manager) {
 			OnPost(manager, (ElectionMessageDto.PrepareDto dto) => new ElectionMessage.Prepare(dto));
 		}
 
-		private void OnPostPrepareOk(HttpEntityManager manager, UriTemplateMatch match) {
+		private void OnPostPrepareOk(HttpEntityManager manager) {
 			OnPost(manager, (ElectionMessageDto.PrepareOkDto dto) => new ElectionMessage.PrepareOk(dto));
 		}
 
-		private void OnPostProposal(HttpEntityManager manager, UriTemplateMatch match) {
+		private void OnPostProposal(HttpEntityManager manager) {
 			OnPost(manager, (ElectionMessageDto.ProposalDto dto) => new ElectionMessage.Proposal(dto));
 		}
 
-		private void OnPostAccept(HttpEntityManager manager, UriTemplateMatch match) {
+		private void OnPostAccept(HttpEntityManager manager) {
 			OnPost(manager, (ElectionMessageDto.AcceptDto dto) => new ElectionMessage.Accept(dto));
 		}
 

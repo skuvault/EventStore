@@ -33,7 +33,7 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 				OnGetFreshStats);
 		}
 
-		private void OnGetTcpConnectionStats(HttpEntityManager entity, UriTemplateMatch match) {
+		private void OnGetTcpConnectionStats(HttpEntityManager entity) {
 			var envelope = new SendToHttpEnvelope(_networkSendQueue,
 				entity,
 				Format.GetFreshTcpConnectionStatsCompleted,
@@ -41,29 +41,12 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 			Publish(new MonitoringMessage.GetFreshTcpConnectionStats(envelope));
 		}
 
-		private void OnGetFreshStats(HttpEntityManager entity, UriTemplateMatch match) {
+		private void OnGetFreshStats(HttpEntityManager entity) {
 			var envelope = new SendToHttpEnvelope(_networkSendQueue,
 				entity,
 				Format.GetFreshStatsCompleted,
 				Configure.GetFreshStatsCompleted);
 
-			var statPath = match.BoundVariables["statPath"];
-			var statSelector = GetStatSelector(statPath);
-
-			bool useMetadata;
-			if (!bool.TryParse(match.QueryParameters["metadata"], out useMetadata))
-				useMetadata = false;
-
-			bool useGrouping;
-			if (!bool.TryParse(match.QueryParameters["group"], out useGrouping))
-				useGrouping = true;
-
-			if (!useGrouping && !string.IsNullOrEmpty(statPath)) {
-				SendBadRequest(entity, "Dynamic stats selection works only with grouping enabled");
-				return;
-			}
-
-			Publish(new MonitoringMessage.GetFreshStats(envelope, statSelector, useMetadata, useGrouping));
 		}
 
 		private static Func<Dictionary<string, object>, Dictionary<string, object>> GetStatSelector(string statPath) {
@@ -98,7 +81,7 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 			};
 		}
 
-		private void OnGetReplicationStats(HttpEntityManager entity, UriTemplateMatch match) {
+		private void OnGetReplicationStats(HttpEntityManager entity) {
 			var envelope = new SendToHttpEnvelope(_networkSendQueue,
 				entity,
 				Format.GetReplicationStatsCompleted,

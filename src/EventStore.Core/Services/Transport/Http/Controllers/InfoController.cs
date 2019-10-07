@@ -40,7 +40,7 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 			_currentState = message.State;
 		}
 
-		private void OnGetInfo(HttpEntityManager entity, UriTemplateMatch match) {
+		private void OnGetInfo(HttpEntityManager entity) {
 			entity.ReplyTextContent(Codec.Json.To(new {
 					ESVersion = VersionInfo.Version,
 					State = _currentState.ToString().ToLower(),
@@ -53,7 +53,7 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 				e => Log.ErrorException(e, "Error while writing HTTP response (info)"));
 		}
 
-		private void OnGetOptions(HttpEntityManager entity, UriTemplateMatch match) {
+		private void OnGetOptions(HttpEntityManager entity) {
 			if (entity.User != null && (entity.User.IsInRole(SystemRoles.Operations) || entity.User.IsInRole(SystemRoles.Admins))) {
 				entity.ReplyTextContent(Codec.Json.To(Filter(GetOptionsInfo(_options), new[] {"CertificatePassword"})),
 					HttpStatusCode.OK,

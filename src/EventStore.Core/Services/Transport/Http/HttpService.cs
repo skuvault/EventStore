@@ -133,20 +133,20 @@ namespace EventStore.Core.Services.Transport.Http {
 		}
 
 		public void RegisterCustomAction(ControllerAction action,
-			Func<HttpEntityManager, UriTemplateMatch, RequestParams> handler) {
+			Func<HttpEntityManager, RequestParams> handler) {
 			Ensure.NotNull(action, "action");
 			Ensure.NotNull(handler, "handler");
 
 			_uriRouter.RegisterAction(action, handler);
 		}
 
-		public void RegisterAction(ControllerAction action, Action<HttpEntityManager, UriTemplateMatch> handler) {
+		public void RegisterAction(ControllerAction action, Action<HttpEntityManager> handler) {
 			Ensure.NotNull(action, "action");
 			Ensure.NotNull(handler, "handler");
 
-			_uriRouter.RegisterAction(action, (man, match) => {
+			_uriRouter.RegisterAction(action, (man) => {
 				if(_disableAuthorization || Authorized(man.User, action.RequiredAuthorizationLevel)){
-					handler(man, match);
+					handler(man);
 				} else{
 					man.ReplyStatus(EventStore.Transport.Http.HttpStatusCode.Unauthorized, "Unauthorized", (exc)=>{
 						Log.Debug("Error while sending reply (http service): {exc}.", exc.Message);

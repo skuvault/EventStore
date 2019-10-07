@@ -54,20 +54,20 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 		}
 
 		protected void Register(IHttpService service, string uriTemplate, string httpMethod,
-			Action<HttpEntityManager, UriTemplateMatch> handler, ICodec[] requestCodecs, ICodec[] responseCodecs, AuthorizationLevel requiredAuthorizationLevel) {
+			Action<HttpEntityManager> handler, ICodec[] requestCodecs, ICodec[] responseCodecs, AuthorizationLevel requiredAuthorizationLevel) {
 			service.RegisterAction(new ControllerAction(uriTemplate, httpMethod, requestCodecs, responseCodecs, requiredAuthorizationLevel),
 				handler);
 		}
 
 		protected void RegisterCustom(IHttpService service, string uriTemplate, string httpMethod,
-			Func<HttpEntityManager, UriTemplateMatch, RequestParams> handler,
+			Func<HttpEntityManager, RequestParams> handler,
 			ICodec[] requestCodecs, ICodec[] responseCodecs, AuthorizationLevel requiredAuthorizationLevel) {
 			service.RegisterCustomAction(new ControllerAction(uriTemplate, httpMethod, requestCodecs, responseCodecs, requiredAuthorizationLevel),
 				handler);
 		}
 
 		protected void RegisterUrlBased(IHttpService service, string uriTemplate, string httpMethod, AuthorizationLevel requiredAuthorizationLevel,
-			Action<HttpEntityManager, UriTemplateMatch> action) {
+			Action<HttpEntityManager> action) {
 			Register(service, uriTemplate, httpMethod, action, Codec.NoCodecs, DefaultCodecs, requiredAuthorizationLevel);
 		}
 

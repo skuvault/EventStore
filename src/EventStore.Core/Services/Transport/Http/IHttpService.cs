@@ -18,8 +18,8 @@ namespace EventStore.Core.Services.Transport.Http {
 		ServiceAccessibility Accessibility { get; }
 
 		void RegisterCustomAction(ControllerAction action,
-			Func<HttpEntityManager, UriTemplateMatch, RequestParams> handler);
+			Func<HttpEntityManager, RequestParams> handler);
 
-		void RegisterAction(ControllerAction action, Action<HttpEntityManager, UriTemplateMatch> handler);
+		void RegisterAction(ControllerAction action, Action<HttpEntityManager> handler);
 	}
 }

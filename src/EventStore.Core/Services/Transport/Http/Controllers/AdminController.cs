@@ -34,7 +34,7 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 				OnPostMergeIndexes);
 		}
 
-		private void OnPostShutdown(HttpEntityManager entity, UriTemplateMatch match) {
+		private void OnPostShutdown(HttpEntityManager entity) {
 			if (entity.User != null &&
 			    (entity.User.IsInRole(SystemRoles.Admins) || entity.User.IsInRole(SystemRoles.Operations))) {
 				Log.Info("Request shut down of node because shutdown command has been received.");
@@ -45,7 +45,7 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 			}
 		}
 
-		private void OnPostMergeIndexes(HttpEntityManager entity, UriTemplateMatch match) {
+		private void OnPostMergeIndexes(HttpEntityManager entity) {
 			Log.Info("Request merge indexes because /admin/mergeindexes request has been received.");
 
 			var correlationId = Guid.NewGuid();
@@ -65,30 +65,9 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 			Publish(new ClientMessage.MergeIndexes(envelope, correlationId, entity.User));
 		}
 
-		private void OnPostScavenge(HttpEntityManager entity, UriTemplateMatch match) {
+		private void OnPostScavenge(HttpEntityManager entity) {
 			int startFromChunk = 0;
 
-			var startFromChunkVariable = match.BoundVariables["startFromChunk"];
-			if (startFromChunkVariable != null) {
-				if (!int.TryParse(startFromChunkVariable, out startFromChunk) || startFromChunk < 0) {
-					SendBadRequest(entity, "startFromChunk must be a positive integer");
-					return;
-				}
-			}
-
-			int threads = 1;
-
-			var threadsVariable = match.BoundVariables["threads"];
-			if (threadsVariable != null) {
-				if (!int.TryParse(threadsVariable, out threads) || threads < 1) {
-					SendBadRequest(entity, "threads must be a 1 or above");
-					return;
-				}
-			}
-
-			Log.Info(
-				"Request scavenging because /admin/scavenge?startFromChunk={chunkStartNumber}&threads={numThreads} request has been received.",
-				startFromChunk, threads);
 
 			var envelope = new SendToHttpEnvelope(_networkSendQueue, entity, (e, message) => {
 					var completed = message as ClientMessage.ScavengeDatabaseResponse;
@@ -109,11 +88,11 @@ namespace EventStore.Core.Services.Transport.Http.Controllers {
 				}
 			);
 
-			Publish(new ClientMessage.ScavengeDatabase(envelope, Guid.Empty, entity.User, startFromChunk, threads));
+			Publish(new ClientMessage.ScavengeDatabase(envelope, Guid.Empty, entity.User, startFromChunk, 1));
 		}
 
-		private void OnStopScavenge(HttpEntityManager entity, UriTemplateMatch match) {
-			var scavengeId = match.BoundVariables["scavengeId"];
+		private void OnStopScavenge(HttpEntityManager entity) {
+			var scavengeId = "1";
 
 			Log.Info("Stopping scavenge because /admin/scavenge/{scavengeId} DELETE request has been received.",
 				scavengeId);

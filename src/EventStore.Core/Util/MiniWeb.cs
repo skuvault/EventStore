@@ -33,9 +33,7 @@ namespace EventStore.Core.Util {
 				OnStaticContent);
 		}
 
-		private void OnStaticContent(HttpEntityManager http, UriTemplateMatch match) {
-			var contentLocalPath = match.BoundVariables["remaining_path"];
-			ReplyWithContent(http, contentLocalPath);
+		private void OnStaticContent(HttpEntityManager http) {
 		}
 
 		private void ReplyWithContent(HttpEntityManager http, string contentLocalPath) {
