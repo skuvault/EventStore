@@ -5,8 +5,9 @@
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <PackageVersion>5.0.2.1</PackageVersion>
+    <PackageVersion>5.0.2.2</PackageVersion>
     <RepositoryUrl>https://github.com/skuvault/EventStore</RepositoryUrl>
+		<TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage</TargetsForTfmSpecificBuildOutput>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
@@ -15,12 +16,34 @@
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\EventStore.BufferManagement\EventStore.BufferManagement.csproj" />
-    <ProjectReference Include="..\EventStore.Common\EventStore.Common.csproj" />
-    <ProjectReference Include="..\EventStore.Native\EventStore.Native.csproj" />
-    <ProjectReference Include="..\EventStore.Rags\EventStore.Rags.csproj" />
-    <ProjectReference Include="..\EventStore.Transport.Http\EventStore.Transport.Http.csproj" />
-    <ProjectReference Include="..\EventStore.Transport.Tcp\EventStore.Transport.Tcp.csproj" />
+    <ProjectReference Include="..\EventStore.BufferManagement\EventStore.BufferManagement.csproj">
+			<ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+			<IncludeAssets>EventStore.BufferManagement.dll</IncludeAssets>
+		</ProjectReference>
+    <ProjectReference Include="..\EventStore.Common.Utils\EventStore.Common.Utils.csproj">
+			<ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+			<IncludeAssets>EventStore.Common.Utils.dll</IncludeAssets>
+		</ProjectReference>
+    <ProjectReference Include="..\EventStore.Common\EventStore.Common.csproj">
+			<ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+			<IncludeAssets>EventStore.Common.dll</IncludeAssets>
+		</ProjectReference>
+    <ProjectReference Include="..\EventStore.Native\EventStore.Native.csproj">
+			<ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+			<IncludeAssets>EventStore.Native.dll</IncludeAssets>
+		</ProjectReference>
+    <ProjectReference Include="..\EventStore.Rags\EventStore.Rags.csproj">
+			<ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+			<IncludeAssets>EventStore.Native.dll</IncludeAssets>
+		</ProjectReference>
+    <ProjectReference Include="..\EventStore.Transport.Http\EventStore.Transport.Http.csproj">
+			<ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+			<IncludeAssets>EventStore.Transport.Http.dll</IncludeAssets>
+		</ProjectReference>
+    <ProjectReference Include="..\EventStore.Transport.Tcp\EventStore.Transport.Tcp.csproj">
+			<ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+			<IncludeAssets>EventStore.Transport.Tcp.dll</IncludeAssets>
+		</ProjectReference>
   </ItemGroup>
   <ItemGroup />
 	<ItemGroup>
@@ -28,4 +51,9 @@
 			<_Parameter1>EventStore.Core.Tests</_Parameter1>
 		</AssemblyAttribute>
 	</ItemGroup>
+	<Target DependsOnTargets="ResolveReferences" Name="CopyProjectReferencesToPackage">
+		<ItemGroup>
+			<BuildOutputInPackage Include="@(ReferenceCopyLocalPaths-&gt;WithMetadataValue('ReferenceSourceTarget', 'ProjectReference'))" />
+		</ItemGroup>
+	</Target>
 </Project>
