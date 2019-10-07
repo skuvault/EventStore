@@ -14,6 +14,8 @@ using EventStore.Core.Settings;
 using EventStore.Core.TransactionLog.LogRecords;
 using EventStore.Core.Util;
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
+using System.ServiceModel.Description;
 using EventStore.Core.TransactionLog.Unbuffered;
 
 
@@ -76,7 +78,7 @@ namespace EventStore.Core.TransactionLog.Chunks.TFChunk {
 			}
 		}
 
-		private readonly bool _inMem;
+		private bool _inMem;
 		private readonly string _filename;
 		private int _fileSize;
 		private volatile bool _isReadOnly;
@@ -137,6 +139,65 @@ namespace EventStore.Core.TransactionLog.Chunks.TFChunk {
 			FreeCachedData();
 		}
 
+		public static TFChunk CreateNewWithMemoryPointer(ChunkHeader chunkHeader, byte *data, int size) {
+			var md5 = MD5.Create();
+			var chunk = new TFChunk("in-mem", 5,5, 8, true, false, false, false);
+			// ALLOCATE MEM
+			Interlocked.Exchange(ref chunk._isCached, 1);
+			chunk._cachedLength = size;
+			chunk._cachedData = (IntPtr) data;
+			if(chunk._cachedData == null) throw new OutOfMemoryException();
+			// WRITER STREAM
+			var memStream =
+				new UnmanagedMemoryStream((byte*)chunk._cachedData, chunk._cachedLength, chunk._cachedLength, FileAccess.ReadWrite);
+			chunk.WriteHeader(md5, memStream, chunkHeader);
+			memStream.Position = ChunkHeader.Size;
+
+			// READER STREAMS
+			Interlocked.Add(ref chunk._memStreamCount, chunk._maxReaderCount);
+			for (int i = 0; i < chunk._maxReaderCount; i++) {
+				var stream = new UnmanagedMemoryStream((byte*)chunk._cachedData, chunk._cachedLength);
+				var reader = new BinaryReader(stream);
+				chunk._memStreams.Enqueue(new ReaderWorkItem(stream, reader, isMemory: true));
+			}
+
+			chunk._writerWorkItem = new WriterWorkItem(null, memStream, md5);
+			chunk.InitCompleted(false,false);
+			return chunk;
+		}
+
+		public static TFChunk FromMemoryPointer(byte *data, int size) {
+			var md5 = MD5.Create();
+			var chunk = new TFChunk("in-mem", 1,5, 8, true, false, false, false);
+			// ALLOCATE MEM
+			Interlocked.Exchange(ref chunk._isCached, 1);
+			chunk._cachedLength = size;
+			chunk._cachedData = (IntPtr) data;
+			chunk._fileSize = size;
+			chunk._isReadOnly = true;
+			if(chunk._cachedData == null) throw new OutOfMemoryException();
+			// WRITER STREAM
+			var memStream =
+				new UnmanagedMemoryStream((byte*)chunk._cachedData, chunk._cachedLength, chunk._cachedLength, FileAccess.ReadWrite);
+			chunk._chunkHeader = Chunks.ChunkHeader.FromStream(memStream);
+			memStream.Seek(memStream.Length - Chunks.ChunkFooter.Size, SeekOrigin.Begin);
+			chunk._chunkFooter = Chunks.ChunkFooter.FromStream(memStream);
+			memStream.Position = Chunks.ChunkHeader.Size;
+			
+			// READER STREAMS
+			Interlocked.Add(ref chunk._memStreamCount, chunk._maxReaderCount);
+			for (int i = 0; i < chunk._maxReaderCount; i++) {
+				var stream = new UnmanagedMemoryStream((byte*)chunk._cachedData, chunk._cachedLength);
+				var reader = new BinaryReader(stream);
+				chunk._memStreams.Enqueue(new ReaderWorkItem(stream, reader, isMemory: true));
+			}
+
+			chunk._writerWorkItem = new WriterWorkItem(null, memStream, md5);
+			chunk._inMem = true;
+			chunk.InitCompleted(false, false);
+			return chunk;
+		}
+		
 		public static TFChunk FromCompletedFile(string filename, bool verifyHash, bool unbufferedRead,
 			int initialReaderCount, bool optimizeReadSideCache = false, bool reduceFileCachePressure = false) {
 			var chunk = new TFChunk(filename, initialReaderCount, ESConsts.TFChunkMaxReaderCount,
@@ -214,13 +275,16 @@ namespace EventStore.Core.TransactionLog.Chunks.TFChunk {
 		}
 
 		private void InitCompleted(bool verifyHash, bool optimizeReadSideCache) {
-			var fileInfo = new FileInfo(_filename);
-			if (!fileInfo.Exists)
-				throw new CorruptDatabaseException(new ChunkNotFoundException(_filename));
+			if (!_inMem) {
+				var fileInfo = new FileInfo(_filename);
+				if (!fileInfo.Exists)
+					throw new CorruptDatabaseException(new ChunkNotFoundException(_filename));
 
-			_fileSize = (int)fileInfo.Length;
-			_isReadOnly = true;
-			SetAttributes(_filename, true);
+				_fileSize = (int)fileInfo.Length;
+				_isReadOnly = true;
+				SetAttributes(_filename, true);
+			}
+
 			CreateReaderStreams();
 
 			var reader = GetReaderWorkItem();
@@ -370,7 +434,10 @@ namespace EventStore.Core.TransactionLog.Chunks.TFChunk {
 					4096,
 					false,
 					4096);
-			} else {
+			} else if (_inMem) {
+				stream = new UnmanagedMemoryStream((byte *) _cachedData, _cachedLength);
+			} 
+				else {
 				stream = new FileStream(
 					_filename,
 					FileMode.Open,
@@ -394,7 +461,7 @@ namespace EventStore.Core.TransactionLog.Chunks.TFChunk {
 
 			// WRITER STREAM
 			var memStream =
-				new UnmanagedMemoryStream((byte*)_cachedData, _cachedLength, _cachedLength, FileAccess.ReadWrite);
+				new UnmanagedMemoryStream((byte*)_cachedData, 0, _cachedLength, FileAccess.ReadWrite);
 			WriteHeader(md5, memStream, chunkHeader);
 			memStream.Position = ChunkHeader.Size;
 
